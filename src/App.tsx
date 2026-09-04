@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, useMotionValue, useReducedMotion } from 'framer-motion';
 import { Github, Linkedin, Mail, Phone, MapPin, Download, ExternalLink, Code2, Database, Layers, TrendingUp, Award, Briefcase, Calendar, Star, CheckCircle2, Zap, Target, Users, Coffee } from 'lucide-react';
 
 // Global Styles Component
@@ -58,6 +58,123 @@ const GlobalStyles = () => {
       section {
         scroll-margin-top: 80px;
       }
+
+      html.custom-cursor, html.custom-cursor body, html.custom-cursor a, html.custom-cursor button {
+        cursor: none;
+      }
+
+      .nav-link {
+        position: relative;
+      }
+
+      .nav-link::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -4px;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(90deg, #B600A8, #BE4C00);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .nav-link:hover::after {
+        transform: scaleX(1);
+      }
+
+      .shine-btn {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .shine-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.28) 50%, transparent 70%);
+        transform: translateX(-120%);
+        transition: transform 0.7s ease;
+      }
+
+      .shine-btn:hover::before {
+        transform: translateX(120%);
+      }
+
+      @keyframes float-orb {
+        0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+        50% { transform: translate3d(18px, -24px, 0) scale(1.08); }
+      }
+
+      @keyframes marquee-left {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+
+      @keyframes marquee-right {
+        from { transform: translateX(-50%); }
+        to { transform: translateX(0); }
+      }
+
+      @keyframes shimmer-bar {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .skill-fill {
+        background-size: 200% 100%;
+        background-image: linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%),
+          linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+        animation: shimmer-bar 2.4s ease-in-out infinite;
+      }
+
+      .marquee-track {
+        display: flex;
+        gap: 1rem;
+        width: max-content;
+        animation: marquee-left 42s linear infinite;
+      }
+
+      .marquee-track.reverse {
+        animation-name: marquee-right;
+      }
+
+      .marquee-row:hover .marquee-track {
+        animation-play-state: paused;
+      }
+
+      .glow-card {
+        transition: box-shadow 0.35s ease, border-color 0.35s ease, transform 0.35s ease;
+      }
+
+      .glow-card:hover {
+        box-shadow: 0 12px 40px rgba(182, 0, 168, 0.18);
+      }
+
+      .img-reveal {
+        overflow: hidden;
+      }
+
+      .img-reveal img {
+        transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .img-reveal:hover img {
+        transform: scale(1.06);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .marquee-track, .skill-fill, .shine-btn::before {
+          animation: none !important;
+        }
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     `;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
@@ -65,7 +182,13 @@ const GlobalStyles = () => {
   return null;
 };
 
-// Scroll Progress Bar
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const usePrefersReducedMotion = () => {
+  const reduced = useReducedMotion();
+  return !!reduced;
+};
+
 const ScrollProgress = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -75,6 +198,140 @@ const ScrollProgress = () => {
   });
 
   return <motion.div className="scroll-progress" style={{ scaleX }} />;
+};
+
+const CustomCursor = () => {
+  const x = useMotionValue(-100);
+  const y = useMotionValue(-100);
+  const springX = useSpring(x, { stiffness: 380, damping: 32 });
+  const springY = useSpring(y, { stiffness: 380, damping: 32 });
+  const [hovering, setHovering] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const reduced = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reduced || window.matchMedia('(pointer: coarse)').matches) return;
+
+    const move = (e: MouseEvent) => {
+      x.set(e.clientX);
+      y.set(e.clientY);
+      setVisible(true);
+    };
+    const over = (e: MouseEvent) => {
+      const el = e.target as HTMLElement;
+      setHovering(!!el.closest('a, button, [data-cursor="hover"]'));
+    };
+    const leave = () => setVisible(false);
+
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseover', over);
+    document.addEventListener('mouseleave', leave);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseover', over);
+      document.removeEventListener('mouseleave', leave);
+    };
+  }, [reduced, x, y]);
+
+  useEffect(() => {
+    if (reduced || window.matchMedia('(pointer: coarse)').matches) return;
+    document.documentElement.classList.add('custom-cursor');
+    return () => document.documentElement.classList.remove('custom-cursor');
+  }, [reduced]);
+
+  if (reduced) return null;
+
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none fixed top-0 left-0 z-[10000] mix-blend-difference hidden md:block"
+      style={{ x: springX, y: springY, opacity: visible ? 1 : 0 }}
+    >
+      <motion.div
+        className="rounded-full border border-white"
+        animate={{
+          width: hovering ? 44 : 16,
+          height: hovering ? 44 : 16,
+          x: hovering ? -22 : -8,
+          y: hovering ? -22 : -8,
+          backgroundColor: hovering ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.85)',
+        }}
+        transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+      />
+    </motion.div>
+  );
+};
+
+const CountUp: React.FC<{ value: string; className?: string; style?: React.CSSProperties }> = ({ value, className, style }) => {
+  const reduced = usePrefersReducedMotion();
+  const match = value.match(/^(\d+)(.*)$/);
+  const target = match ? parseInt(match[1], 10) : 0;
+  const suffix = match ? match[2] : value;
+  const [n, setN] = useState(reduced ? target : 0);
+  const ref = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (reduced) return;
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || started.current) return;
+      started.current = true;
+      const start = performance.now();
+      const dur = 1100;
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / dur);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setN(Math.round(target * eased));
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [reduced, target]);
+
+  return (
+    <div ref={ref} className={className} style={style}>
+      {match ? `${n}${suffix}` : value}
+    </div>
+  );
+};
+
+const TiltCard: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className, style }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const srx = useSpring(rx, { stiffness: 180, damping: 18 });
+  const sry = useSpring(ry, { stiffness: 180, damping: 18 });
+  const reduced = usePrefersReducedMotion();
+
+  const onMove = (e: React.MouseEvent) => {
+    if (reduced || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    ry.set(px * 10);
+    rx.set(-py * 10);
+  };
+
+  const onLeave = () => {
+    rx.set(0);
+    ry.set(0);
+  };
+
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      style={{ ...style, rotateX: srx, rotateY: sry, transformStyle: 'preserve-3d', perspective: 800 }}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
+      {children}
+    </motion.div>
+  );
 };
 
 // Typing Animation Component
@@ -121,18 +378,19 @@ const FadeIn: React.FC<{
   x?: number;
   y?: number;
   element?: string;
-}> = ({ children, delay = 0, duration = 0.7, x = 0, y = 30, element = 'div' }) => {
+}> = ({ children, delay = 0, duration = 0.55, x = 0, y = 24, element = 'div' }) => {
   const MotionComponent = motion.create(element as any);
-  
+  const reduced = usePrefersReducedMotion();
+
   return (
     <MotionComponent
-      initial={{ opacity: 0, x, y }}
+      initial={reduced ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, x, y }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, margin: '50px', amount: 0 }}
+      viewport={{ once: true, margin: '-40px', amount: 0.15 }}
       transition={{
-        duration,
-        delay,
-        ease: [0.25, 0.1, 0.25, 1],
+        duration: reduced ? 0 : duration,
+        delay: reduced ? 0 : delay,
+        ease: EASE,
       }}
     >
       {children}
@@ -194,30 +452,23 @@ const Magnet: React.FC<{
   );
 };
 
-// AnimatedText Component
 const AnimatedText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start 0.8', 'end 0.2'],
-  });
+  const words = text.split(' ');
 
   return (
-    <p ref={ref} className={`relative ${className}`}>
-      {text.split('').map((char, i) => {
-        const start = i / text.length;
-        const end = start + 1 / text.length;
-        const opacity = useTransform(scrollYProgress, [start, end], [0.2, 1]);
-
-        return (
-          <span key={i} className="relative inline-block">
-            <span className="invisible">{char}</span>
-            <motion.span style={{ opacity }} className="absolute left-0 top-0">
-              {char}
-            </motion.span>
-          </span>
-        );
-      })}
+    <p className={className}>
+      {words.map((word, i) => (
+        <motion.span
+          key={`${word}-${i}`}
+          className="inline-block mr-[0.32em]"
+          initial={{ opacity: 0.2, y: 8 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ delay: Math.min(i * 0.02, 0.6), duration: 0.4, ease: EASE }}
+        >
+          {word}
+        </motion.span>
+      ))}
     </p>
   );
 };
@@ -225,39 +476,61 @@ const AnimatedText: React.FC<{ text: string; className?: string }> = ({ text, cl
 // Contact Button
 const ContactButton: React.FC = () => {
   return (
-    <a
+    <motion.a
       href="mailto:raj88anshu@gmail.com"
-      className="rounded-full px-8 py-3 sm:px-10 sm:py-3.5 md:px-12 md:py-4 text-xs sm:text-sm md:text-base text-white font-medium uppercase tracking-widest hover:scale-105 transition-transform inline-block"
+      className="shine-btn rounded-full px-8 py-3 sm:px-10 sm:py-3.5 md:px-12 md:py-4 text-xs sm:text-sm md:text-base text-white font-medium uppercase tracking-widest inline-block"
       style={{
         background: 'linear-gradient(123deg, #18011F 7%, #B600A8 37%, #7621B0 72%, #BE4C00 100%)',
         boxShadow: '0px 4px 4px rgba(181, 1, 167, 0.25), 4px 4px 12px #7721B1 inset',
         outline: '2px solid white',
         outlineOffset: '-3px',
       }}
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
     >
       Contact Me
-    </a>
+    </motion.a>
   );
 };
 
 // Download Resume Button
 const DownloadResumeButton: React.FC = () => {
   return (
-    <a
+    <motion.a
       href="/Aryan_Raj_Resume.pdf"
       download
-      className="rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-8 py-3 sm:px-10 sm:py-3.5 text-xs sm:text-sm md:text-base hover:bg-[#D7E2EA]/10 transition-all hover:scale-105 inline-flex items-center gap-3"
+      className="rounded-full border-2 border-[#D7E2EA] text-[#D7E2EA] font-medium uppercase tracking-widest px-8 py-3 sm:px-10 sm:py-3.5 text-xs sm:text-sm md:text-base hover:bg-[#D7E2EA]/10 inline-flex items-center gap-3"
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
     >
       <Download size={20} />
       Resume
-    </a>
+    </motion.a>
   );
 };
 
 // Hero Section
 const HeroSection: React.FC = () => {
+  const reduced = usePrefersReducedMotion();
+
   return (
     <section className="min-h-screen flex flex-col relative" style={{ overflowX: 'clip' }}>
+      {!reduced && (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-[18%] left-[8%] h-56 w-56 rounded-full blur-3xl opacity-40"
+            style={{ background: 'radial-gradient(circle, #B600A8 0%, transparent 70%)', animation: 'float-orb 8s ease-in-out infinite' }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-[22%] right-[10%] h-64 w-64 rounded-full blur-3xl opacity-30"
+            style={{ background: 'radial-gradient(circle, #7621B0 0%, transparent 70%)', animation: 'float-orb 10s ease-in-out infinite reverse' }}
+          />
+        </>
+      )}
       {/* Navbar */}
       <FadeIn delay={0} y={-20}>
         <nav className="flex justify-between items-center px-6 md:px-10 pt-6 md:pt-8">
@@ -272,7 +545,7 @@ const HeroSection: React.FC = () => {
               <a
                 key={link}
                 href={`#${link.toLowerCase()}`}
-                className="text-[#D7E2EA] font-medium uppercase tracking-wider text-xs md:text-sm hover:text-[#B600A8] transition-colors duration-200"
+                className="nav-link text-[#D7E2EA] font-medium uppercase tracking-wider text-xs md:text-sm hover:text-[#B600A8] transition-colors duration-200"
               >
                 {link}
               </a>
@@ -283,6 +556,24 @@ const HeroSection: React.FC = () => {
 
       {/* Hero Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-10 text-center">
+        <FadeIn delay={0.12} y={24}>
+          <motion.div
+            className="relative mb-8"
+            animate={reduced ? undefined : { y: [0, -10, 0] }}
+            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <div
+              className="absolute -inset-1 rounded-full opacity-80 blur-md"
+              style={{ background: 'linear-gradient(123deg, #B600A8, #7621B0, #BE4C00)' }}
+            />
+            <img
+              src="/images/hero-avatar.webp"
+              alt="Aryan Raj"
+              className="relative w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full object-cover border-4 border-[#0C0C0C]"
+            />
+          </motion.div>
+        </FadeIn>
+
         <FadeIn delay={0.2} y={30}>
           <p className="text-[#D7E2EA]/70 text-sm md:text-base mb-4 uppercase tracking-widest">
             Welcome to my portfolio
@@ -291,7 +582,21 @@ const HeroSection: React.FC = () => {
 
         <FadeIn delay={0.3} y={40}>
           <h1 className="hero-heading font-black uppercase tracking-tight leading-none mb-6" style={{ fontSize: 'clamp(3rem, 12vw, 120px)' }}>
-            Aryan Raj
+            {'Aryan Raj'.split(' ').map((word, wi) => (
+              <span key={word} className="inline-block" style={{ marginRight: wi === 0 ? '0.28em' : 0 }}>
+                {word.split('').map((char, i) => (
+                  <motion.span
+                    key={`${word}-${i}`}
+                    className="inline-block"
+                    initial={reduced ? false : { opacity: 0, y: 28 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 + (wi * word.length + i) * 0.04, duration: 0.45, ease: EASE }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
+              </span>
+            ))}
           </h1>
         </FadeIn>
 
@@ -327,9 +632,10 @@ const HeroSection: React.FC = () => {
                 href={social.href}
                 target={social.label !== 'Email' ? '_blank' : undefined}
                 rel={social.label !== 'Email' ? 'noopener noreferrer' : undefined}
-                className="p-3 rounded-full bg-[#D7E2EA]/10 text-[#D7E2EA] hover:bg-[#B600A8] hover:text-white transition-all"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
+                className="p-3 rounded-full bg-[#D7E2EA]/10 text-[#D7E2EA] hover:bg-[#B600A8] hover:text-white transition-colors"
+                whileHover={{ scale: 1.12, y: -3 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 18 }}
                 aria-label={social.label}
               >
                 <social.icon size={24} />
@@ -344,11 +650,15 @@ const HeroSection: React.FC = () => {
         <div className="pb-8 flex flex-col items-center gap-2">
           <p className="text-[#D7E2EA]/50 text-xs uppercase tracking-widest">Scroll Down</p>
           <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            animate={reduced ? undefined : { y: [0, 10, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
             className="w-6 h-10 rounded-full border-2 border-[#D7E2EA]/30 flex items-start justify-center p-2"
           >
-            <motion.div className="w-1.5 h-1.5 rounded-full bg-[#B600A8]" />
+            <motion.div
+              className="w-1.5 h-1.5 rounded-full bg-[#B600A8]"
+              animate={reduced ? undefined : { y: [0, 12, 0], opacity: [1, 0.4, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            />
           </motion.div>
         </div>
       </FadeIn>
@@ -369,10 +679,12 @@ const AchievementBadges: React.FC = () => {
     <section className="bg-[#0C0C0C] py-16 px-5">
       <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
         {achievements.map((achievement, i) => (
-          <FadeIn key={i} delay={i * 0.1} y={30}>
+          <FadeIn key={i} delay={i * 0.08} y={24}>
             <motion.div
-              className="relative p-6 rounded-2xl bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/10 hover:border-[#B600A8]/50 transition-all text-center group"
-              whileHover={{ scale: 1.05, y: -5 }}
+              data-cursor="hover"
+              className="glow-card relative p-6 rounded-2xl bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/10 hover:border-[#B600A8]/50 text-center group"
+              whileHover={{ scale: 1.04, y: -6 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 20 }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#B600A8]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
               <achievement.icon 
@@ -411,23 +723,20 @@ const StatsSection: React.FC = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((stat, i) => (
-            <FadeIn key={i} delay={i * 0.15} y={30}>
+            <FadeIn key={i} delay={i * 0.1} y={24}>
               <motion.div
-                className="text-center p-8 rounded-3xl bg-gradient-to-br from-[#B600A8]/5 to-[#7621B0]/5 border border-[#D7E2EA]/10 hover:border-[#B600A8]/50 transition-all relative overflow-hidden group"
-                whileHover={{ scale: 1.05, y: -10 }}
+                data-cursor="hover"
+                className="glow-card text-center p-8 rounded-3xl bg-gradient-to-br from-[#B600A8]/5 to-[#7621B0]/5 border border-[#D7E2EA]/10 hover:border-[#B600A8]/50 relative overflow-hidden group"
+                whileHover={{ scale: 1.04, y: -8 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#B600A8]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <stat.icon className="w-12 h-12 mx-auto mb-4 transition-transform group-hover:scale-110" style={{ color: stat.color }} />
-                <motion.div
+                <div className="absolute inset-0 bg-gradient-to-br from-[#B600A8]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <stat.icon className="w-12 h-12 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110" style={{ color: stat.color }} />
+                <CountUp
+                  value={stat.number}
                   className="text-5xl md:text-6xl font-black mb-3 relative z-10"
                   style={{ color: stat.color }}
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                >
-                  {stat.number}
-                </motion.div>
+                />
                 <p className="text-[#D7E2EA]/80 text-sm font-medium uppercase tracking-wide relative z-10">
                   {stat.label}
                 </p>
@@ -465,7 +774,7 @@ const ExperienceSection: React.FC = () => {
               whileHover={{ scale: 1.3 }}
             />
 
-            <div className="bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/20 rounded-3xl p-8 hover:border-[#B600A8]/50 transition-all">
+            <div className="glow-card bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/20 rounded-3xl p-8 hover:border-[#B600A8]/50">
               <div className="flex items-center gap-3 text-[#B600A8] mb-4">
                 <Calendar size={20} />
                 <span className="text-sm font-semibold uppercase tracking-wider">Aug 2025 - Nov 2025 (4 months)</span>
@@ -524,9 +833,6 @@ const ExperienceSection: React.FC = () => {
 
 // Marquee Section
 const MarqueeSection: React.FC = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const [offset, setOffset] = useState(200);
-
   const images1 = [
     'https://motionsites.ai/assets/hero-space-voyage-preview-eECLH3Yc.gif',
     'https://motionsites.ai/assets/hero-codenest-preview-Cgppc2qV.gif',
@@ -554,53 +860,33 @@ const MarqueeSection: React.FC = () => {
     'https://motionsites.ai/assets/hero-celestia-preview-0yO3jXO8.gif',
   ];
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!sectionRef.current) return;
-      const sectionTop = sectionRef.current.offsetTop;
-      const scrollOffset = (window.scrollY - sectionTop + window.innerHeight) * 0.3;
-      setOffset(scrollOffset);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const Row: React.FC<{ images: string[]; reverse?: boolean }> = ({ images, reverse }) => (
+    <div className="marquee-row overflow-hidden">
+      <div className={`marquee-track ${reverse ? 'reverse' : ''}`}>
+        {[...images, ...images].map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt=""
+            loading="lazy"
+            className="rounded-2xl object-cover"
+            style={{ width: '420px', height: '270px', flexShrink: 0 }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div ref={sectionRef} className="bg-[#0C0C0C] pt-20 pb-10">
-      <FadeIn delay={0} y={30}>
+    <div className="bg-[#0C0C0C] pt-20 pb-10">
+      <FadeIn delay={0} y={24}>
         <h3 className="text-center text-2xl md:text-3xl font-bold text-[#D7E2EA] mb-12">
           Inspired by <span className="gradient-accent">Modern Design</span>
         </h3>
       </FadeIn>
-      
       <div className="flex flex-col gap-4">
-        <div className="flex gap-4" style={{ willChange: 'transform', transform: `translateX(${offset - 200}px)` }}>
-          {[...images1, ...images1, ...images1].map((src, i) => (
-            <motion.img
-              key={i}
-              src={src}
-              alt=""
-              loading="lazy"
-              className="rounded-2xl object-cover"
-              style={{ width: '420px', height: '270px', flexShrink: 0 }}
-              whileHover={{ scale: 1.05, zIndex: 10 }}
-            />
-          ))}
-        </div>
-        <div className="flex gap-4" style={{ willChange: 'transform', transform: `translateX(${-(offset - 200)}px)` }}>
-          {[...images2, ...images2, ...images2].map((src, i) => (
-            <motion.img
-              key={i}
-              src={src}
-              alt=""
-              loading="lazy"
-              className="rounded-2xl object-cover"
-              style={{ width: '420px', height: '270px', flexShrink: 0 }}
-              whileHover={{ scale: 1.05, zIndex: 10 }}
-            />
-          ))}
-        </div>
+        <Row images={images1} />
+        <Row images={images2} reverse />
       </div>
     </div>
   );
@@ -757,8 +1043,9 @@ const SkillsSection: React.FC = () => {
         {skillCategories.map((category, i) => (
           <FadeIn key={i} delay={i * 0.15} y={40}>
             <motion.div
-              className="p-8 rounded-3xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 hover:border-[#B600A8] transition-all hover:shadow-2xl"
-              whileHover={{ y: -5 }}
+              className="p-8 rounded-3xl bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 hover:border-[#B600A8] hover:shadow-2xl"
+              whileHover={{ y: -6 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
               <div className="flex items-center gap-4 mb-8">
                 <div className="p-4 rounded-2xl gradient-bg">
@@ -776,11 +1063,11 @@ const SkillsSection: React.FC = () => {
                     </div>
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full gradient-bg rounded-full"
+                        className="h-full skill-fill rounded-full"
                         initial={{ width: 0 }}
                         whileInView={{ width: `${skill.level}%` }}
                         viewport={{ once: true }}
-                        transition={{ duration: 1, delay: idx * 0.1, ease: 'easeOut' }}
+                        transition={{ duration: 0.9, delay: idx * 0.06, ease: EASE }}
                       />
                     </div>
                   </div>
@@ -818,8 +1105,9 @@ const CertificationsSection: React.FC = () => {
         {certifications.map((cert, i) => (
           <FadeIn key={i} delay={i * 0.1} y={30}>
             <motion.div
-              className="p-6 rounded-2xl bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 hover:border-[#B600A8] transition-all group relative overflow-hidden"
-              whileHover={{ scale: 1.03, y: -8 }}
+              className="p-6 rounded-2xl bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 hover:border-[#B600A8] group relative overflow-hidden"
+              whileHover={{ scale: 1.03, y: -6 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 20 }}
             >
               <div className="absolute top-0 right-0 text-6xl opacity-10 group-hover:opacity-20 transition-opacity">
                 {cert.icon}
@@ -853,13 +1141,13 @@ const ProjectsSection: React.FC = () => {
       name: 'Excel Analytics Platform',
       category: 'Full Stack Application',
       description: 'A comprehensive web platform for analyzing Excel data with real-time visualization, data validation, and automated reporting features. Built with scalability and performance in mind.',
-      link: 'https://github.com/Anshu052',
+      link: 'https://github.com/Anshu052/Excel-Analytics',
       tags: ['React', 'Node.js', 'MongoDB', 'Express', 'Chart.js', 'Data Viz'],
       highlights: ['Real-time Analysis', 'Auto Reports', 'Data Validation'],
       images: {
-        col1img1: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055344_5eff02e0-87a5-41ce-b64f-eb08da8f33db.png&w=1280&q=85',
-        col1img2: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055431_11d841fd-8b41-46a5-82e4-b04f2407a7d8.png&w=1280&q=85',
-        col2img: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055451_e317bf2d-28d4-48cc-86b0-6f72f25b6327.png&w=1280&q=85',
+        col1img1: '/images/excel-sheet.jpg',
+        col1img2: '/images/excel-charts.jpg',
+        col2img: '/images/excel-dashboard.jpg',
       },
     },
     {
@@ -867,13 +1155,13 @@ const ProjectsSection: React.FC = () => {
       name: 'Google Gemini Clone',
       category: 'Frontend Showcase',
       description: 'Pixel-perfect recreation of Google Gemini AI interface featuring smooth animations, responsive design, and optimized performance. Demonstrates advanced React patterns and modern UI/UX principles.',
-      link: 'https://github.com/Anshu052',
+      link: 'https://github.com/Anshu052/Gemini-Clone',
       tags: ['React', 'TypeScript', 'Tailwind', 'API', 'Responsive', 'Animations'],
       highlights: ['Pixel Perfect', 'Smooth UX', 'Type Safe'],
       images: {
-        col1img1: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055654_911201c5-36d9-4bc6-bac7-331adfce159f.png&w=1280&q=85',
-        col1img2: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055723_5ceda0b8-d9c2-4665-b2e3-83ba19ba76d1.png&w=1280&q=85',
-        col2img: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055753_adc5dcbd-a8e6-49c0-b43a-9b030d835cea.png&w=1280&q=85',
+        col1img1: '/images/gemini-chat.jpg',
+        col1img2: '/images/gemini-code.jpg',
+        col2img: '/images/gemini-ai.jpg',
       },
     },
     {
@@ -881,13 +1169,13 @@ const ProjectsSection: React.FC = () => {
       name: 'Interactive Portfolio',
       category: 'Personal Branding',
       description: 'A modern, animated portfolio website showcasing projects and skills with advanced scroll animations, magnetic hover effects, and seamless navigation. Built to impress and engage.',
-      link: 'https://github.com/Anshu052',
+      link: 'https://github.com/Anshu052/aryan-portfolio',
       tags: ['React', 'Framer Motion', 'TypeScript', '3D Effects', 'Modern UI'],
       highlights: ['Advanced Animations', 'Interactive', 'Modern Design'],
       images: {
-        col1img1: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055759_963cfb0b-4bd1-4b0f-9d0a-09bd6cf95b2f.png&w=1280&q=85',
-        col1img2: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_060108_438f781a-9846-4dcc-89ab-c4e6cb830f5b.png&w=1280&q=85',
-        col2img: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260412_055818_9d062121-ad7e-46b9-999a-1a6a692ef1ee.png&w=1280&q=85',
+        col1img1: '/images/hero-avatar.webp',
+        col1img2: '/images/portfolio-experience.webp',
+        col2img: '/images/portfolio-hero.webp',
       },
     },
   ];
@@ -968,35 +1256,31 @@ const ProjectsSection: React.FC = () => {
             </div>
 
             {/* Images */}
-            <div className="flex gap-3 md:gap-4">
+            <TiltCard className="flex gap-3 md:gap-4">
               <div className="flex flex-col gap-3 md:gap-4" style={{ width: '40%' }}>
-                <motion.img
-                  src={project.images.col1img1}
-                  alt=""
-                  className="w-full rounded-[30px] sm:rounded-[40px] object-cover"
-                  style={{ height: 'clamp(130px, 16vw, 230px)' }}
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.3 }}
-                />
-                <motion.img
-                  src={project.images.col1img2}
-                  alt=""
-                  className="w-full rounded-[30px] sm:rounded-[40px] object-cover"
-                  style={{ height: 'clamp(160px, 22vw, 340px)' }}
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.3 }}
-                />
+                <div className="img-reveal rounded-[30px] sm:rounded-[40px]" style={{ height: 'clamp(130px, 16vw, 230px)' }}>
+                  <img
+                    src={project.images.col1img1}
+                    alt={`${project.name} screenshot 1`}
+                    className="w-full h-full rounded-[30px] sm:rounded-[40px] object-cover"
+                  />
+                </div>
+                <div className="img-reveal rounded-[30px] sm:rounded-[40px]" style={{ height: 'clamp(160px, 22vw, 340px)' }}>
+                  <img
+                    src={project.images.col1img2}
+                    alt={`${project.name} screenshot 2`}
+                    className="w-full h-full rounded-[30px] sm:rounded-[40px] object-cover"
+                  />
+                </div>
               </div>
-              <div style={{ width: '60%' }}>
-                <motion.img
+              <div className="img-reveal rounded-[30px] sm:rounded-[40px]" style={{ width: '60%' }}>
+                <img
                   src={project.images.col2img}
-                  alt=""
+                  alt={`${project.name} screenshot 3`}
                   className="w-full h-full rounded-[30px] sm:rounded-[40px] object-cover"
-                  whileHover={{ scale: 1.03 }}
-                  transition={{ duration: 0.3 }}
                 />
               </div>
-            </div>
+            </TiltCard>
           </div>
         </motion.div>
       </div>
@@ -1071,8 +1355,10 @@ const TestimonialsSection: React.FC = () => {
         {testimonials.map((testimonial, i) => (
           <FadeIn key={i} delay={i * 0.15} y={30}>
             <motion.div
-              className="p-8 rounded-3xl bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/20 hover:border-[#B600A8]/50 transition-all"
-              whileHover={{ y: -10, scale: 1.02 }}
+              data-cursor="hover"
+              className="glow-card p-8 rounded-3xl bg-gradient-to-br from-[#D7E2EA]/5 to-transparent border border-[#D7E2EA]/20 hover:border-[#B600A8]/50"
+              whileHover={{ y: -8, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
               <div className="flex gap-1 mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
@@ -1230,6 +1516,7 @@ const App: React.FC = () => {
   return (
     <div style={{ overflowX: 'clip' }}>
       <GlobalStyles />
+      <CustomCursor />
       <ScrollProgress />
       <HeroSection />
       <AchievementBadges />
